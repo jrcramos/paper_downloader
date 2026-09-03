@@ -1,21 +1,25 @@
 {
   "manifest_version": 3,
   "name": "Paper Downloader & Smart Renamer",
-  "version": "1.0",
-  "description": "Auto-detects academic papers, fetches verified metadata (Crossref, Semantic Scholar, arXiv), and downloads PDFs cleanly renamed by author, year, and title.",
+  "version": "1.1",
+  "description": "Auto-detects academic papers, queries authoritative metadata (Crossref, arXiv, Semantic Scholar, Unpaywall), and downloads cleanly renamed PDFs.",
   "permissions": [
     "downloads",
     "storage",
     "activeTab",
     "scripting",
-    "contextMenus"
+    "contextMenus",
+    "tabs"
   ],
   "host_permissions": [
     "https://api.crossref.org/*",
     "https://api.semanticscholar.org/*",
     "https://api.unpaywall.org/*",
+    "https://api.openalex.org/*",
     "https://export.arxiv.org/*",
-    "https://eutils.ncbi.nlm.nih.gov/*"
+    "https://eutils.ncbi.nlm.nih.gov/*",
+    "https://doi.org/*",
+    "*://*/*"
   ],
   "icons": {
     "16": "icons/icon16.png",
@@ -39,5 +43,19 @@
       "16": "icons/icon16.png",
       "32": "icons/icon32.png"
     }
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "commands": {
+    "quick_download": {
+      "suggested_key": {
+        "default": "Alt+P",
+        "mac": "Alt+P"
+      },
+      "description": "Download and smart rename current paper"
+    }
   }
 }
+

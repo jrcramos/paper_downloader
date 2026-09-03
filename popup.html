@@ -4,215 +4,277 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Paper Downloader & Smart Renamer</title>
-  <style>
-    :root {
-      --bg-primary: #0f172a;
-      --bg-card: #1e293b;
-      --bg-hover: #334155;
-      --text-primary: #f8fafc;
-      --text-secondary: #94a3b8;
-      --accent: #38bdf8;
-      --accent-hover: #0284c7;
-      --success: #22c55e;
-      --border: #334155;
-      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      width: 480px;
-      font-family: var(--font);
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      padding: 16px;
-      font-size: 13px;
-    }
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 14px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid var(--border);
-    }
-    .title {
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--text-primary);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .badge {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      color: var(--accent);
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 600;
-    }
-    .card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 12px;
-    }
-    .paper-title {
-      font-size: 13px;
-      font-weight: 700;
-      line-height: 1.4;
-      margin-bottom: 6px;
-      color: #fff;
-    }
-    .paper-meta {
-      font-size: 11.5px;
-      color: var(--text-secondary);
-      margin-bottom: 4px;
-    }
-    .paper-doi {
-      font-size: 11px;
-      font-family: monospace;
-      color: var(--accent);
-      word-break: break-all;
-    }
-    .label {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      color: var(--text-secondary);
-      margin-bottom: 5px;
-      letter-spacing: 0.5px;
-      display: flex;
-      justify-content: space-between;
-    }
-    .template-select {
-      width: 100%;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 7px 10px;
-      font-size: 12px;
-      outline: none;
-      margin-bottom: 8px;
-      cursor: pointer;
-    }
-    .filename-input {
-      width: 100%;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 8px 10px;
-      font-size: 12px;
-      font-family: monospace;
-      outline: none;
-      margin-bottom: 12px;
-    }
-    .filename-input:focus {
-      border-color: var(--accent);
-    }
-    .btn-primary {
-      width: 100%;
-      background: var(--accent);
-      color: #0f172a;
-      border: none;
-      border-radius: 6px;
-      padding: 10px;
-      font-size: 13px;
-      font-weight: 700;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      transition: background 0.15s;
-      margin-bottom: 8px;
-    }
-    .btn-primary:hover:not(:disabled) {
-      background: var(--accent-hover);
-      color: #fff;
-    }
-    .btn-primary:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    .btn-row {
-      display: flex;
-      gap: 8px;
-    }
-    .btn-secondary {
-      flex: 1;
-      background: var(--bg-card);
-      color: var(--text-primary);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 8px;
-      font-size: 11.5px;
-      font-weight: 600;
-      cursor: pointer;
-      text-align: center;
-      transition: all 0.15s;
-    }
-    .btn-secondary:hover {
-      background: var(--bg-hover);
-      border-color: var(--accent);
-    }
-    .status {
-      font-size: 11.5px;
-      text-align: center;
-      margin-top: 8px;
-      min-height: 16px;
-      color: var(--text-secondary);
-    }
-    .status.success { color: var(--success); }
-    .status.error { color: #f87171; }
-  </style>
+  <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div class="header">
-    <div class="title">
-      <span>📄 Paper Downloader</span>
+  <!-- Header Bar -->
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24">
+          <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+        </svg>
+      </div>
+      <span class="brand-text">Paper Downloader</span>
     </div>
-    <span class="badge" id="sourceBadge">Scanning...</span>
+    <div class="header-actions">
+      <button class="icon-btn" id="openSettingsBtn" title="Quick Settings" aria-label="Quick Settings">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+      <button class="icon-btn" id="openOptionsPageBtn" title="Full Preferences" aria-label="Full Preferences">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+          <polyline points="15 3 21 3 21 9"></polyline>
+          <line x1="10" y1="14" x2="21" y2="3"></line>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Quick Settings Drawer (collapsible) -->
+  <div class="settings-drawer" id="settingsDrawer">
+    <div class="drawer-title">
+      <span>⚡ Quick Preferences</span>
+      <span style="cursor: pointer; font-size: 13px;" id="closeSettingsDrawer">&times;</span>
+    </div>
+    <div class="form-group">
+      <label class="form-label" style="display: flex; align-items: center; justify-content: space-between;">
+        <span>Save into Subfolder</span>
+        <input type="checkbox" id="saveSubfolderCheckbox" checked>
+      </label>
+      <input type="text" class="form-input" id="subfolderInput" placeholder="Papers" value="Papers">
+    </div>
+    <div class="form-group">
+      <label class="form-label" style="display: flex; align-items: center; justify-content: space-between;">
+        <span>Sci-Hub / Sci-Net Fallback</span>
+        <input type="checkbox" id="enableSciHubCheckbox" checked>
+      </label>
+      <div style="font-size: 10px; color: var(--text-dim); margin-top: 2px;">
+        Cascades through mirrors automatically if paper is paywalled.
+      </div>
+      <div id="quickSciHubMirrorGroup" style="margin-top: 6px;">
+        <label class="form-label" style="font-size: 10.5px; margin-bottom: 2px;">Primary Mirror</label>
+        <select class="form-input" id="quickSciHubMirrorSelect" style="font-size: 11.5px; padding: 4px 6px; height: 28px;">
+          <option value="https://www.sci-hub.ru/">Sci-Hub.ru (Official)</option>
+          <option value="https://sci-hub.al/">Sci-Hub.al</option>
+          <option value="https://sci-net.xyz/">Sci-Net.xyz (New P2P/Mirror)</option>
+          <option value="https://sci-hub.st/">Sci-Hub.st (Official)</option>
+          <option value="https://sci-hub.su/">Sci-Hub.su (Official)</option>
+          <option value="https://sci-hub.box/">Sci-Hub.box (Official)</option>
+          <option value="https://sci-hub.red/">Sci-Hub.red (Official)</option>
+          <option value="https://sci-hub.ee/">Sci-Hub.ee</option>
+          <option value="https://sci-hub.mk/">Sci-Hub.mk</option>
+          <option value="https://sci-hub.se/">Sci-Hub.se</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Custom Template Pattern</label>
+      <input type="text" class="form-input" id="customTemplateInput" placeholder="{year} - {authors_et_al} - {title}.pdf">
+      <div class="token-cloud" id="tokenCloud">
+        <!-- Token tags inserted via JS -->
+      </div>
+    </div>
   </div>
 
-  <div class="card" id="paperCard">
-    <div class="paper-title" id="paperTitle">Looking for paper on active tab...</div>
-    <div class="paper-meta" id="paperAuthors">Authors: —</div>
-    <div class="paper-meta" id="paperJournalYear">Journal & Year: —</div>
-    <div class="paper-doi" id="paperDoi">DOI: —</div>
+  <!-- View Mode Tabs (Shown when multiple papers/DOIs detected) -->
+  <div class="view-tabs" id="viewTabs" style="display: none;">
+    <button class="tab-btn active" id="tabSingleBtn">
+      <span>📑 Single Paper</span>
+    </button>
+    <button class="tab-btn" id="tabBatchBtn">
+      <span>📚 Batch Manager (<span id="batchTabCount">0</span>)</span>
+    </button>
   </div>
 
-  <div class="label">
-    <span>Rename Pattern</span>
+  <!-- SINGLE PAPER VIEW -->
+  <div id="singlePaperView">
+    <!-- Paper Selector Dropdown (Shown when multiple papers detected) -->
+    <div class="paper-selector-wrap" id="paperSelectorWrap" style="display: none;">
+      <button class="paper-nav-btn" id="prevPaperBtn" title="Previous paper">&larr;</button>
+      <select class="paper-select" id="paperSelect" title="Select detected paper"></select>
+      <button class="paper-nav-btn" id="nextPaperBtn" title="Next paper">&rarr;</button>
+    </div>
+
+    <!-- Status & Badges Bar -->
+    <div class="status-bar">
+      <div class="badge-group">
+        <span class="badge badge-count" id="tabPaperCountBadge" style="display: none;">📚 0 Found</span>
+        <span class="badge pulse-dot" id="sourceBadge">Scanning active tab...</span>
+        <span class="badge" id="accessBadge" style="display: none;">Checking OA...</span>
+      </div>
+      <span class="badge badge-citations" id="citationsBadge" style="display: none;">★ 0 citations</span>
+    </div>
+
+    <!-- Paper Preview Card -->
+    <div class="paper-card" id="paperCard">
+      <h1 class="paper-title" id="paperTitle">Detecting academic publication...</h1>
+      <div class="paper-authors" id="paperAuthors">
+        <span class="author-chip skeleton">Author Name</span>
+      </div>
+      <div class="paper-details">
+        <span class="paper-venue" id="paperVenue">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+          <span id="venueText">—</span>
+        </span>
+        <span class="identifier-tag" id="paperIdentifier" title="Click to copy identifier">DOI: —</span>
+      </div>
+    </div>
+
+    <!-- Renaming Controls -->
+    <div class="section-header">
+      <span class="section-label">Rename Template</span>
+      <span style="font-size: 10px; color: var(--accent-cyan); cursor: pointer;" id="configureTemplateLink">Edit Pattern</span>
+    </div>
+
+    <!-- Template Preset Chips -->
+    <div class="template-chips" id="templateChips">
+      <button class="chip-btn active" data-id="standard">Standard</button>
+      <button class="chip-btn" data-id="apa">APA Style</button>
+      <button class="chip-btn" data-id="websafe">Web-Safe</button>
+      <button class="chip-btn" data-id="journal">Journal First</button>
+      <button class="chip-btn" data-id="zotero">Zotero</button>
+      <button class="chip-btn" data-id="multi_author">All Authors</button>
+    </div>
+
+    <!-- Filename Input Box -->
+    <div class="filename-box">
+      <div class="subfolder-prefix" id="subfolderPrefix">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        <span id="subfolderPrefixText">Downloads/Papers/</span>
+      </div>
+      <div class="filename-input-wrap">
+        <input type="text" class="filename-input" id="filenameInput" placeholder="Auto-generating clean filename..." />
+        <button class="reset-icon-btn" id="resetFilenameBtn" title="Reset to template pattern">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Primary CTA: Download Button -->
+    <button class="btn-download" id="downloadBtn" disabled>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </svg>
+      <span id="downloadBtnText">Download & Smart Rename PDF</span>
+    </button>
+
+    <!-- Sci-Hub Direct Browser Link (When paper is paywalled or bot challenge triggered) -->
+    <button class="btn btn-secondary" id="openSciHubBtn" style="display: none; width: 100%; margin-top: 6px; padding: 7px 10px; font-size: 11.5px; border-radius: 6px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.04); color: var(--accent-cyan); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+      <span id="openSciHubBtnText">🔓 Open in Sci-Hub (Bypass Bot Check)</span>
+    </button>
+
+    <!-- Secondary Actions Grid -->
+    <div class="actions-grid">
+      <button class="action-btn" id="bibtexBtn" title="Copy clean BibTeX citation">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        <span>Copy BibTeX</span>
+      </button>
+      <button class="action-btn" id="apaCitationBtn" title="Copy formatted APA reference">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+        <span>Copy APA</span>
+      </button>
+      <button class="action-btn" id="unpaywallBtn" title="Query Unpaywall for legal open access full text">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
+        <span id="oaBtnText">Find Open Access</span>
+      </button>
+      <button class="action-btn" id="openLinkBtn" title="Open paper in new tab">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        <span>Open Paper Page</span>
+      </button>
+    </div>
   </div>
-  <select class="template-select" id="templateSelect">
-    <option value="{year} - {first_author} et al - {title}.pdf">[Year] - [Author et al] - [Title].pdf</option>
-    <option value="{first_author} ({year}) - {title}.pdf">[Author] ([Year]) - [Title].pdf</option>
-    <option value="{year}_{first_author}_{title}.pdf">[Year]_[Author]_[Title].pdf</option>
-    <option value="{journal} - {year} - {first_author} - {title}.pdf">[Journal] - [Year] - [Author] - [Title].pdf</option>
-  </select>
 
-  <div class="label">
-    <span>Target Filename Preview</span>
-    <span style="font-size: 10px; color: var(--accent); cursor: pointer;" id="resetFilenameBtn">Reset</span>
+  <!-- BATCH MANAGER VIEW -->
+  <div class="batch-container" id="batchContainer">
+    <input type="text" class="batch-search" id="batchSearchInput" placeholder="Filter papers by title, author, or DOI..." />
+    
+    <div class="batch-toolbar">
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+          <input type="checkbox" id="selectAllCheckbox" class="batch-checkbox" checked>
+          <span>Select All</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;" title="Skip papers that already exist in your Downloads folder">
+          <input type="checkbox" id="skipDuplicatesCheckbox" class="batch-checkbox" checked>
+          <span>Skip Existing</span>
+        </label>
+      </div>
+      <span id="selectionCounter">0 of 0 selected</span>
+    </div>
+
+    <!-- Scrollable Papers List -->
+    <div class="batch-list" id="batchList">
+      <!-- Items dynamically populated via popup.js -->
+    </div>
+
+    <!-- Batch Progress Bar with Cancel Button -->
+    <div class="batch-progress" id="batchProgress">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+        <span id="progressText" style="font-weight: 500;">Processing batch...</span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span id="progressPercent" style="font-weight: 700; color: var(--accent-cyan);">0%</span>
+          <button class="btn-cancel" id="cancelBatchBtn" title="Stop remaining downloads">⏹️ Stop</button>
+        </div>
+      </div>
+      <div class="progress-track">
+        <div class="progress-bar-fill" id="progressBarFill"></div>
+      </div>
+    </div>
+
+    <!-- Batch Summary Report Card -->
+    <div class="batch-summary-card" id="batchSummaryCard" style="display: none;">
+      <div class="summary-header">
+        <span id="summaryTitle" style="font-weight: 600;">Batch Download Report</span>
+        <span style="cursor: pointer; font-size: 14px;" id="closeSummaryCard">&times;</span>
+      </div>
+      <div class="summary-stats">
+        <span class="stat-pill stat-success">✓ <span id="summarySuccess">0</span> Saved</span>
+        <span class="stat-pill stat-skipped">⏩ <span id="summarySkipped">0</span> Skipped</span>
+        <span class="stat-pill stat-failed">❌ <span id="summaryFailed">0</span> Failed</span>
+      </div>
+      <div class="summary-actions" id="summaryActions" style="display: none;">
+        <button class="action-btn" id="copyFailedDoisBtn" title="Copy failed DOIs to clipboard">
+          📋 Copy Failed DOIs
+        </button>
+      </div>
+    </div>
+
+    <!-- Batch Actions -->
+    <button class="btn-download" id="batchDownloadBtn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </svg>
+      <span>Download Selected (<span id="batchDownloadCount">0</span>)</span>
+    </button>
+
+    <div class="actions-grid">
+      <button class="action-btn" id="batchBibtexBtn" title="Compile all selected papers into BibTeX">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        <span>Copy All BibTeX</span>
+      </button>
+      <button class="action-btn" id="batchExportTxtBtn" title="Export paper titles and DOIs as clean text">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        <span>Export List (.txt)</span>
+      </button>
+    </div>
   </div>
-  <input type="text" class="filename-input" id="filenameInput" placeholder="Auto-generated clean filename..." />
 
-  <button class="btn-primary" id="downloadBtn" disabled>
-    <span>📥 Download & Smart Rename PDF</span>
-  </button>
-
-  <div class="btn-row">
-    <button class="btn-secondary" id="bibtexBtn">📋 Copy BibTeX</button>
-    <button class="btn-secondary" id="unpaywallBtn">🔓 Find Unpaywalled</button>
+  <!-- Floating Toast Notification -->
+  <div class="toast" id="toast">
+    <span id="toastMessage">Notification</span>
   </div>
-
-  <div class="status" id="statusMsg"></div>
 
   <script src="config.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>
+

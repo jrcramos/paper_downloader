@@ -103,7 +103,10 @@ Returns:
 ## 5. Roadmap & Implementation Phases
 
 - [x] **Phase 1: Project Scaffold** — Manifest V3, directory structure, config, baseline scripts.
-- [ ] **Phase 2: Full API Resolvers** — Semantic Scholar & OpenAlex fallback resolvers for non-DOI preprints.
-- [ ] **Phase 3: Sci-Hub & Unpaywall Integration** — 1-click resolver for paywalled links to unpaywalled Open Access PDFs.
-- [ ] **Phase 4: Automatic Download Subfolder** — Option to save all papers into a dedicated `Downloads/Papers/` folder.
-- [ ] **Phase 5: User Options Page** — Custom default rename template builder and BibTeX format preferences.
+- [x] **Phase 2: Full API Resolvers** — Multi-API cascade with Crossref, arXiv, Semantic Scholar, OpenAlex, and PubMed E-utilities.
+- [x] **Phase 3: Sci-Hub & Unpaywall Integration** — 1-click legal Open Access discovery via Unpaywall API v2 & user-configurable fallback mirror.
+- [x] **Phase 4: Automatic Download Subfolder** — Direct routing into configurable `Downloads/Papers/` subfolder with conflict prevention.
+- [x] **Phase 5: User Options Page** — Dedicated settings dashboard with interactive live template sandbox, subfolder controls, and API configurations.
+- [x] **Phase 6: Rich Glassmorphic UI & Shortcuts** — Modern academic aesthetic with citation counts, Open Access badges, token clouds, and keyboard shortcuts (`Alt+P`).
+- [x] **Phase 7: Test Suite & Verification** — Automated unit and integration testing suite for tokens, sanitizers, regexes, and APIs.
+

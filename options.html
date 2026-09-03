@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Preferences — Paper Downloader & Smart Renamer</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="page-header">
+      <div class="brand-section">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">Paper Downloader & Smart Renamer</h1>
+          <p class="brand-subtitle">Configure naming templates, subfolders, and academic open access resolvers</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- Card 1: Renaming Templates & Live Sandbox -->
+    <section class="card">
+      <h2 class="card-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+        <span>Renaming Template & Live Sandbox</span>
+      </h2>
+      <p class="card-desc">Choose a popular academic preset or build your own custom token pattern.</p>
+
+      <div class="form-group">
+        <label class="form-label">Presets</label>
+        <div class="preset-buttons" id="presetButtons">
+          <!-- Populated by options.js -->
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Custom Template Pattern</label>
+        <input type="text" class="form-input mono" id="templateInput" placeholder="{year} - {authors_et_al} - {title}.pdf">
+        
+        <div class="token-grid" id="tokenGrid">
+          <!-- Token tags inserted via JS -->
+        </div>
+      </div>
+
+      <!-- Live Interactive Sandbox -->
+      <div class="sandbox-card">
+        <div class="sandbox-header">
+          <span>Interactive Preview</span>
+          <span style="color: var(--text-dim); text-transform: none;">Sample Paper</span>
+        </div>
+        <div class="sandbox-sample">
+          <strong>Vaswani et al. (2017)</strong> — <em>"Attention Is All You Need"</em> (NeurIPS, arXiv:1706.03762)
+        </div>
+        <div class="sandbox-output" id="sandboxOutput">
+          <!-- Live formatted filename output -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Card 2: File Management & Destinations -->
+    <section class="card">
+      <h2 class="card-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        <span>Download Destination & Safety</span>
+      </h2>
+      <p class="card-desc">Manage how and where research papers are stored in your browser's download directory.</p>
+
+      <div class="form-group">
+        <label class="toggle-label">
+          <input type="checkbox" id="saveSubfolderCheckbox" checked>
+          <span>Automatically save papers into a dedicated subfolder</span>
+        </label>
+      </div>
+
+      <div class="form-group" id="subfolderGroup">
+        <label class="form-label">Subfolder Name (inside Downloads)</label>
+        <input type="text" class="form-input" id="subfolderInput" value="Papers" placeholder="Papers">
+        <small style="color: var(--text-dim); font-size: 11.5px;">E.g. "Papers" saves to <code>Downloads/Papers/</code></small>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Max Title Length</label>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <input type="range" id="maxTitleSlider" min="40" max="140" value="80" style="flex: 1; accent-color: var(--accent-cyan);">
+          <span id="maxTitleValue" style="font-family: 'JetBrains Mono', monospace; font-size: 12.5px; width: 50px;">80 chars</span>
+        </div>
+        <small style="color: var(--text-dim); font-size: 11.5px;">Protects against Windows <code>MAX_PATH</code> (260 char limit) errors.</small>
+      </div>
+    </section>
+
+    <!-- Card 3: Academic APIs & Open Access Resolvers -->
+    <section class="card">
+      <h2 class="card-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+        <span>Open Access & Academic Resolvers</span>
+      </h2>
+      <p class="card-desc">Configure API credentials and legal open access discovery.</p>
+
+      <div class="form-group">
+        <label class="form-label">Unpaywall Email (for courtesy rate limits)</label>
+        <input type="email" class="form-input" id="unpaywallEmailInput" placeholder="your_email@university.edu" value="paper_downloader_ext@academic.org">
+        <small style="color: var(--text-dim); font-size: 11.5px;">Unpaywall requires an email for free, unlimited legal OA discovery.</small>
+      </div>
+
+      <div class="form-group">
+        <label class="toggle-label">
+          <input type="checkbox" id="enableSciHubCheckbox" checked>
+          <span>Enable Sci-Hub & Sci-Net automatic fallback for paywalled papers</span>
+        </label>
+      </div>
+
+      <div class="form-group" id="scihubGroup">
+        <label class="form-label">Sci-Hub Mirror URL</label>
+        <select class="form-input" id="scihubMirrorSelect" style="margin-bottom: 6px;">
+          <option value="https://www.sci-hub.ru/">https://www.sci-hub.ru/ (Official)</option>
+          <option value="https://sci-hub.al/">https://sci-hub.al/ (Direct fallback)</option>
+          <option value="https://sci-net.xyz/">https://sci-net.xyz/ (Sci-Net / Alexandra Elbakyan)</option>
+          <option value="https://sci-hub.st/">https://sci-hub.st/ (Official)</option>
+          <option value="https://sci-hub.su/">https://sci-hub.su/ (Official)</option>
+          <option value="https://sci-hub.box/">https://sci-hub.box/ (Official)</option>
+          <option value="https://sci-hub.red/">https://sci-hub.red/ (Official)</option>
+          <option value="https://sci-hub.ee/">https://sci-hub.ee/</option>
+          <option value="https://sci-hub.mk/">https://sci-hub.mk/</option>
+          <option value="https://sci-hub.se/">https://sci-hub.se/</option>
+          <option value="custom">Custom URL...</option>
+        </select>
+        <input type="text" class="form-input" id="scihubMirrorInput" value="https://www.sci-hub.ru/" placeholder="https://www.sci-hub.ru/" style="display: none;">
+        <small style="color: var(--text-dim); font-size: 11.5px;">The extension automatically cascades through fallback mirrors if a mirror triggers a bot challenge.</small>
+      </div>
+    </section>
+
+    <!-- Footer Buttons -->
+    <div class="actions-footer">
+      <button class="btn btn-secondary" id="resetDefaultsBtn">Reset to Defaults</button>
+      <button class="btn btn-primary" id="saveBtn">Save Preferences</button>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="optionsToast">✓ Preferences Saved!</div>
+
+  <script src="config.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>
