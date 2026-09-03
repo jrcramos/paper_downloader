@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper Downloader & Smart Renamer</title>
+  <style>
+    :root {
+      --bg-primary: #0f172a;
+      --bg-card: #1e293b;
+      --bg-hover: #334155;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --accent: #38bdf8;
+      --accent-hover: #0284c7;
+      --success: #22c55e;
+      --border: #334155;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 480px;
+      font-family: var(--font);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      padding: 16px;
+      font-size: 13px;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--accent);
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .paper-title {
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.4;
+      margin-bottom: 6px;
+      color: #fff;
+    }
+    .paper-meta {
+      font-size: 11.5px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+    .paper-doi {
+      font-size: 11px;
+      font-family: monospace;
+      color: var(--accent);
+      word-break: break-all;
+    }
+    .label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 5px;
+      letter-spacing: 0.5px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .template-select {
+      width: 100%;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 10px;
+      font-size: 12px;
+      outline: none;
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+    .filename-input {
+      width: 100%;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 12px;
+      font-family: monospace;
+      outline: none;
+      margin-bottom: 12px;
+    }
+    .filename-input:focus {
+      border-color: var(--accent);
+    }
+    .btn-primary {
+      width: 100%;
+      background: var(--accent);
+      color: #0f172a;
+      border: none;
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.15s;
+      margin-bottom: 8px;
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: var(--accent-hover);
+      color: #fff;
+    }
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .btn-row {
+      display: flex;
+      gap: 8px;
+    }
+    .btn-secondary {
+      flex: 1;
+      background: var(--bg-card);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .btn-secondary:hover {
+      background: var(--bg-hover);
+      border-color: var(--accent);
+    }
+    .status {
+      font-size: 11.5px;
+      text-align: center;
+      margin-top: 8px;
+      min-height: 16px;
+      color: var(--text-secondary);
+    }
+    .status.success { color: var(--success); }
+    .status.error { color: #f87171; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">
+      <span>📄 Paper Downloader</span>
+    </div>
+    <span class="badge" id="sourceBadge">Scanning...</span>
+  </div>
+
+  <div class="card" id="paperCard">
+    <div class="paper-title" id="paperTitle">Looking for paper on active tab...</div>
+    <div class="paper-meta" id="paperAuthors">Authors: —</div>
+    <div class="paper-meta" id="paperJournalYear">Journal & Year: —</div>
+    <div class="paper-doi" id="paperDoi">DOI: —</div>
+  </div>
+
+  <div class="label">
+    <span>Rename Pattern</span>
+  </div>
+  <select class="template-select" id="templateSelect">
+    <option value="{year} - {first_author} et al - {title}.pdf">[Year] - [Author et al] - [Title].pdf</option>
+    <option value="{first_author} ({year}) - {title}.pdf">[Author] ([Year]) - [Title].pdf</option>
+    <option value="{year}_{first_author}_{title}.pdf">[Year]_[Author]_[Title].pdf</option>
+    <option value="{journal} - {year} - {first_author} - {title}.pdf">[Journal] - [Year] - [Author] - [Title].pdf</option>
+  </select>
+
+  <div class="label">
+    <span>Target Filename Preview</span>
+    <span style="font-size: 10px; color: var(--accent); cursor: pointer;" id="resetFilenameBtn">Reset</span>
+  </div>
+  <input type="text" class="filename-input" id="filenameInput" placeholder="Auto-generated clean filename..." />
+
+  <button class="btn-primary" id="downloadBtn" disabled>
+    <span>📥 Download & Smart Rename PDF</span>
+  </button>
+
+  <div class="btn-row">
+    <button class="btn-secondary" id="bibtexBtn">📋 Copy BibTeX</button>
+    <button class="btn-secondary" id="unpaywallBtn">🔓 Find Unpaywalled</button>
+  </div>
+
+  <div class="status" id="statusMsg"></div>
+
+  <script src="config.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
