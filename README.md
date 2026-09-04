@@ -1,5 +1,15 @@
 # 📄 Paper Downloader & Smart Renamer
 
+[![Chrome Manifest V3](https://img.shields.io/badge/Chrome_Extension-Manifest_V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)](https://developer.chrome.com/docs/extensions/mv3/)
+[![Open Access](https://img.shields.io/badge/Open_Access-Unpaywall_Integration-10b981?style=flat-square)](https://unpaywall.org/)
+[![Academic APIs](https://img.shields.io/badge/Academic_APIs-Crossref_%7C_arXiv_%7C_Semantic_Scholar-0ea5e9?style=flat-square)](https://crossref.org)
+[![Zero Build](https://img.shields.io/badge/Architecture-Zero--Build_Vanilla_MV3-6366f1?style=flat-square)](https://github.com)
+[![Privacy First](https://img.shields.io/badge/Privacy-100%25_Client--Side-f59e0b?style=flat-square)](https://github.com)
+
+<p align="center">
+  <img src="assets/preview.png" alt="Paper Downloader & Smart Renamer Preview" width="100%" style="border-radius: 8px;">
+</p>
+
 > A modern, elegant Chrome extension (Manifest V3) that auto-detects research papers on any journal or preprint site, queries authoritative academic metadata (Crossref, arXiv, Semantic Scholar, Unpaywall, PubMed), discovers legal Open Access PDFs, smart-renames downloads into customizable author-year-title formats, and routes them cleanly into your Downloads folder.
 
 ---
@@ -43,10 +53,8 @@ paper_downloader/
 ├── options.html             # Full preferences page with live sandbox
 ├── options.css              # Options page design system
 ├── options.js               # Options page interactive logic & storage sync
+├── assets/                  # UI showcase & documentation assets (preview banner)
 ├── icons/                   # High-resolution extension icons (16, 32, 48, 128)
-├── tests/
-│   └── test_resolvers.js    # Automated unit & live API network test suite
-├── PLAN.md                  # Technical architecture and roadmap
 └── README.md                # Documentation & user guide
 ```
 
@@ -98,14 +106,4 @@ You can customize your renaming pattern using these tokens:
 | `{journal}` | Journal or repository name | `NeurIPS` / `arXiv` |
 | `{doi_slug}` | DOI with slashes converted to `_` | `10.1038_s41586-024-00000` |
 | `{arxiv_id}` | Clean arXiv identifier | `1706.03762` |
-
----
-
-## 🧪 Running the Test Suite
-
-Run the automated test suite to verify token parsing, regexes, Windows filename sanitization, and live API connectivity:
-
-```bash
-node tests/test_resolvers.js
-```
 
