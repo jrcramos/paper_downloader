@@ -1051,8 +1051,50 @@ document.addEventListener('DOMContentLoaded', async () => {
             downloadBtnText.textContent = 'Download & Smart Rename PDF';
           }, 3000);
         } else {
-          downloadBtnText.textContent = 'Download & Smart Rename PDF';
-          showToast(res?.error || 'Download failed', 'error');
+          // If direct OA download failed, check if we can fallback to mirrors
+          if (pdfRes.source !== 'scihub' && currentMeta.doi && userPrefs.enableSciHub !== false) {
+            downloadBtn.disabled = true;
+            downloadBtn.classList.add('downloading');
+            downloadBtnText.textContent = 'Trying alternate mirrors...';
+            showToast('Direct download failed. Searching alternate mirrors...', 'info');
+
+            chrome.runtime.sendMessage({
+              action: 'resolve_pdf_url',
+              paper: currentMeta,
+              options: { skipOa: true }
+            }, (fallbackRes) => {
+              if (fallbackRes && fallbackRes.url) {
+                chrome.runtime.sendMessage({
+                  action: 'trigger_download',
+                  data: { url: fallbackRes.url, filename: targetFilename }
+                }, (retryRes) => {
+                  downloadBtn.disabled = false;
+                  downloadBtn.classList.remove('downloading');
+                  if (retryRes && retryRes.success) {
+                    chrome.runtime.sendMessage({ action: 'mark_downloaded', paper: currentMeta, filename: targetFilename });
+                    downloadBtn.classList.add('success');
+                    downloadBtnText.textContent = '✓ Downloaded & Renamed!';
+                    showToast('PDF downloaded via mirror!', 'success');
+                    setTimeout(() => {
+                      downloadBtn.classList.remove('success');
+                      downloadBtnText.textContent = 'Download & Smart Rename PDF';
+                    }, 3000);
+                  } else {
+                    downloadBtnText.textContent = 'Download & Smart Rename PDF';
+                    showToast(retryRes?.error || 'Download failed on all sources', 'error');
+                  }
+                });
+              } else {
+                downloadBtn.disabled = false;
+                downloadBtn.classList.remove('downloading');
+                downloadBtnText.textContent = 'Download & Smart Rename PDF';
+                showToast(res?.error || 'Download failed', 'error');
+              }
+            });
+          } else {
+            downloadBtnText.textContent = 'Download & Smart Rename PDF';
+            showToast(res?.error || 'Download failed', 'error');
+          }
         }
       });
     });

@@ -40,7 +40,10 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
     const pdfRes = await resolvePdfUrlForPaper(meta, prefs);
     if (pdfRes && pdfRes.url) {
-      await triggerSmartDownload({ url: pdfRes.url, filename: cleanFilename });
+      const dlRes = await triggerSmartDownload({ url: pdfRes.url, filename: cleanFilename });
+      if (dlRes && dlRes.success) {
+        await markPaperAsDownloaded(meta, cleanFilename);
+      }
     }
   } else if (info.menuItemId === 'paper_copy_bibtex') {
     const bibtex = await getAuthoritativeBibTeX(meta);
@@ -157,7 +160,10 @@ chrome.commands.onCommand.addListener(async (command) => {
 
         const pdfRes = await resolvePdfUrlForPaper(meta, prefs);
         if (pdfRes && pdfRes.url) {
-          await triggerSmartDownload({ url: pdfRes.url, filename });
+          const dlRes = await triggerSmartDownload({ url: pdfRes.url, filename });
+          if (dlRes && dlRes.success) {
+            await markPaperAsDownloaded(meta, filename);
+          }
         }
       }
     });
@@ -436,7 +442,7 @@ function isHtmlLandingPage(url) {
   if (lower.includes('nature.com/articles/') && !lower.endsWith('.pdf')) return true;
   if (lower.includes('sciencedirect.com/science/article/') && !lower.includes('pdfft')) return true;
   if (lower.includes('cell.com/') && !lower.includes('.pdf')) return true;
-  if (lower.includes('ncbi.nlm.nih.gov/pmc/articles/') && !lower.endsWith('/pdf/')) return true;
+  if ((lower.includes('ncbi.nlm.nih.gov/pmc/articles/') || lower.includes('pmc.ncbi.nlm.nih.gov/articles/')) && !lower.includes('/pdf') && !lower.endsWith('.pdf')) return true;
   return false;
 }
 
@@ -542,11 +548,157 @@ async function getAuthoritativeBibTeX(meta) {
 const intendedDownloads = new Map(); // downloadId -> filename
 const pendingUrlFilenames = new Map(); // url -> filename
 
-// Download manager with subfolder support and strict HTML rejection
-async function triggerSmartDownload(data) {
+// Fast synchronous SHA-256 for PoW computation
+function sha256Sync(ascii) {
+  function rightRotate(value, amount) {
+    return (value >>> amount) | (value << (32 - amount));
+  }
+  let i, j;
+  const words = [];
+  const asciiBitLength = ascii.length * 8;
+  const hash = [
+    0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+    0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+  ];
+  const k = [
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+  ];
+
+  words[asciiBitLength >> 5] |= 0x80 << (24 - asciiBitLength % 32);
+  words[(((asciiBitLength + 64) >> 9) << 4) + 15] = asciiBitLength;
+
+  for (i = 0; i < ascii.length; i++) {
+    words[i >> 2] |= ascii.charCodeAt(i) << (24 - (i % 4) * 8);
+  }
+
+  const w = new Array(64);
+  for (i = 0; i < words.length; i += 16) {
+    let a = hash[0], b = hash[1], c = hash[2], d = hash[3];
+    let e = hash[4], f = hash[5], g = hash[6], h = hash[7];
+
+    for (j = 0; j < 64; j++) {
+      if (j < 16) {
+        w[j] = words[i + j] | 0;
+      } else {
+        const s0 = rightRotate(w[j - 15], 7) ^ rightRotate(w[j - 15], 18) ^ (w[j - 15] >>> 3);
+        const s1 = rightRotate(w[j - 2], 17) ^ rightRotate(w[j - 2], 19) ^ (w[j - 2] >>> 10);
+        w[j] = (w[j - 16] + s0 + w[j - 7] + s1) | 0;
+      }
+      const s1 = rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25);
+      const ch = (e & f) ^ ((~e) & g);
+      const temp1 = (h + s1 + ch + k[j] + w[j]) | 0;
+      const s0 = rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22);
+      const maj = (a & b) ^ (a & c) ^ (b & c);
+      const temp2 = (s0 + maj) | 0;
+
+      h = g;
+      g = f;
+      f = e;
+      e = (d + temp1) | 0;
+      d = c;
+      c = b;
+      b = a;
+      a = (temp1 + temp2) | 0;
+    }
+
+    hash[0] = (hash[0] + a) | 0;
+    hash[1] = (hash[1] + b) | 0;
+    hash[2] = (hash[2] + c) | 0;
+    hash[3] = (hash[3] + d) | 0;
+    hash[4] = (hash[4] + e) | 0;
+    hash[5] = (hash[5] + f) | 0;
+    hash[6] = (hash[6] + g) | 0;
+    hash[7] = (hash[7] + h) | 0;
+  }
+
+  let hex = '';
+  for (i = 0; i < 8; i++) {
+    hex += (hash[i] >>> 0).toString(16).padStart(8, '0');
+  }
+  return hex;
+}
+
+// Ensure PMC Proof-of-Work anti-bot cookie is set before downloading PMC PDFs
+async function ensurePmcPowCookie(targetUrl = 'https://pmc.ncbi.nlm.nih.gov/', force = false) {
+  try {
+    if (!force && chrome.cookies) {
+      const existing = await chrome.cookies.get({
+        url: 'https://pmc.ncbi.nlm.nih.gov/',
+        name: 'cloudpmc-viewer-pow'
+      });
+      if (existing && existing.value) {
+        return true;
+      }
+    }
+
+    const fetchUrl = targetUrl || 'https://pmc.ncbi.nlm.nih.gov/';
+    const res = await fetch(fetchUrl);
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('application/pdf')) {
+      return true;
+    }
+
+    const html = await res.text();
+    const challengeMatch = html.match(/POW_CHALLENGE\s*=\s*"([^"]+)"/);
+    if (!challengeMatch) {
+      return false;
+    }
+
+    const challenge = challengeMatch[1];
+    const difficultyMatch = html.match(/POW_DIFFICULTY\s*=\s*"([^"]+)"/);
+    const difficulty = parseInt(difficultyMatch ? difficultyMatch[1] : '4', 10);
+    const cookieNameMatch = html.match(/POW_COOKIE_NAME\s*=\s*"([^"]+)"/);
+    const cookieName = cookieNameMatch ? cookieNameMatch[1] : 'cloudpmc-viewer-pow';
+
+    const targetPrefix = '0'.repeat(difficulty);
+    let nonce = 0;
+    while (true) {
+      const h = sha256Sync(challenge + nonce);
+      if (h.startsWith(targetPrefix)) break;
+      nonce++;
+      if (nonce > 500000) return false;
+    }
+
+    const cookieValue = `${challenge},${nonce}`;
+    if (chrome.cookies) {
+      await chrome.cookies.set({
+        url: 'https://pmc.ncbi.nlm.nih.gov/',
+        name: cookieName,
+        value: cookieValue,
+        path: '/'
+      });
+      await chrome.cookies.set({
+        url: 'https://www.ncbi.nlm.nih.gov/',
+        name: cookieName,
+        value: cookieValue,
+        path: '/'
+      });
+    }
+
+    return true;
+  } catch (err) {
+    console.warn('Could not solve PMC PoW cookie in background:', err);
+    return false;
+  }
+}
+
+// Download manager with subfolder support, completion verification, and strict HTML rejection
+async function triggerSmartDownload(data, waitToFinish = true) {
   let { url, filename } = data;
   if (!url || isHtmlLandingPage(url)) {
     return { success: false, error: 'Cannot download HTML webpage as PDF' };
+  }
+
+  // Pre-solve PMC PoW challenge if targeting PMC / NCBI
+  if (url.includes('ncbi.nlm.nih.gov')) {
+    await ensurePmcPowCookie(url);
   }
 
   // Ensure subfolder is prepended if enabled in user preferences
@@ -564,7 +716,7 @@ async function triggerSmartDownload(data) {
   // Register URL in pending map before starting download
   pendingUrlFilenames.set(url, filename);
 
-  return new Promise((resolve) => {
+  const startDownload = () => new Promise((resolve) => {
     chrome.downloads.download({
       url,
       filename,
@@ -574,14 +726,44 @@ async function triggerSmartDownload(data) {
       if (chrome.runtime.lastError) {
         pendingUrlFilenames.delete(url);
         resolve({ success: false, error: chrome.runtime.lastError.message });
+      } else if (!downloadId) {
+        pendingUrlFilenames.delete(url);
+        resolve({ success: false, error: 'Could not initiate download' });
       } else {
-        if (downloadId) {
-          intendedDownloads.set(downloadId, filename);
-        }
+        intendedDownloads.set(downloadId, filename);
         resolve({ success: true, downloadId });
       }
     });
   });
+
+  let initRes = await startDownload();
+  if (!initRes.success) return initRes;
+
+  if (!waitToFinish) {
+    return initRes;
+  }
+
+  let finishRes = await waitForDownloadToFinish(initRes.downloadId);
+
+  // If download was aborted because server returned HTML challenge, and it's a PMC URL,
+  // force re-solve PoW and retry once!
+  if (!finishRes.success && url.includes('ncbi.nlm.nih.gov')) {
+    console.log('PMC download interrupted by challenge. Re-solving PoW and retrying...');
+    const solved = await ensurePmcPowCookie(url, true);
+    if (solved) {
+      pendingUrlFilenames.set(url, filename);
+      initRes = await startDownload();
+      if (initRes.success) {
+        finishRes = await waitForDownloadToFinish(initRes.downloadId);
+      }
+    }
+  }
+
+  if (finishRes.success) {
+    return { success: true, downloadId: initRes.downloadId, filename };
+  } else {
+    return { success: false, error: finishRes.error || 'Download failed' };
+  }
 }
 
 // Active tracking of HTML-cancelled downloads and download completions
@@ -955,7 +1137,7 @@ async function resolvePdfUrlForPaper(paper, prefs, options = {}) {
       } catch (e) {}
     }
     if (pmcid) {
-      return { url: `https://www.ncbi.nlm.nih.gov/pmc/articles/${pmcid}/pdf/`, source: 'pmc' };
+      return { url: `https://pmc.ncbi.nlm.nih.gov/articles/${pmcid}/pdf/`, source: 'pmc' };
     }
 
     // 7. Query Unpaywall API for verified legal Open Access PDF
@@ -1200,22 +1382,19 @@ async function executeBatchDownload(papersToDownload = [], options = {}) {
     // 6. Trigger download with enforced filename and subfolder
     try {
       const dlRes = await triggerSmartDownload({ url: pdfRes.url, filename });
-      if (dlRes && dlRes.success && dlRes.downloadId) {
-        // Await actual download completion to guarantee file is on disk!
-        const finishRes = await waitForDownloadToFinish(dlRes.downloadId);
-        if (finishRes.success) {
-          await markPaperAsDownloaded(paper, filename);
-          activeBatchState.downloadedCount++;
-          activeBatchState.results.push({
-            index: paper.originalIndex !== undefined ? paper.originalIndex : i,
-            title: paper.title || paper.snippet || paper.doi,
-            doi: paper.doi || null,
-            filename,
-            url: pdfRes.url,
-            source: pdfRes.source,
-            status: 'downloaded'
-          });
-        } else {
+      if (dlRes && dlRes.success) {
+        await markPaperAsDownloaded(paper, filename);
+        activeBatchState.downloadedCount++;
+        activeBatchState.results.push({
+          index: paper.originalIndex !== undefined ? paper.originalIndex : i,
+          title: paper.title || paper.snippet || paper.doi,
+          doi: paper.doi || null,
+          filename,
+          url: pdfRes.url,
+          source: pdfRes.source,
+          status: 'downloaded'
+        });
+      } else {
           // If the download was aborted because server returned an HTML paywall,
           // and we have not tried Sci-Hub/Sci-Net mirrors yet, cascade to mirrors immediately!
           let recovered = false;
@@ -1224,22 +1403,19 @@ async function executeBatchDownload(papersToDownload = [], options = {}) {
             const mirrorRes = await resolvePdfUrlForPaper(paper, prefs, { skipOa: true });
             if (mirrorRes && mirrorRes.url) {
               const retryDl = await triggerSmartDownload({ url: mirrorRes.url, filename });
-              if (retryDl && retryDl.success && retryDl.downloadId) {
-                const retryFinish = await waitForDownloadToFinish(retryDl.downloadId);
-                if (retryFinish.success) {
-                  await markPaperAsDownloaded(paper, filename);
-                  activeBatchState.downloadedCount++;
-                  activeBatchState.results.push({
-                    index: paper.originalIndex !== undefined ? paper.originalIndex : i,
-                    title: paper.title || paper.snippet || paper.doi,
-                    doi: paper.doi || null,
-                    filename,
-                    url: mirrorRes.url,
-                    source: mirrorRes.source,
-                    status: 'downloaded'
-                  });
-                  recovered = true;
-                }
+              if (retryDl && retryDl.success) {
+                await markPaperAsDownloaded(paper, filename);
+                activeBatchState.downloadedCount++;
+                activeBatchState.results.push({
+                  index: paper.originalIndex !== undefined ? paper.originalIndex : i,
+                  title: paper.title || paper.snippet || paper.doi,
+                  doi: paper.doi || null,
+                  filename,
+                  url: mirrorRes.url,
+                  source: mirrorRes.source,
+                  status: 'downloaded'
+                });
+                recovered = true;
               }
             }
           }
@@ -1252,21 +1428,10 @@ async function executeBatchDownload(papersToDownload = [], options = {}) {
               doi: paper.doi || null,
               filename,
               status: 'failed',
-              reason: finishRes.error || 'Server returned HTML paywall or interrupted download'
+              reason: dlRes?.error || 'Server returned HTML paywall or interrupted download'
             });
           }
         }
-      } else {
-        activeBatchState.failedCount++;
-        activeBatchState.results.push({
-          index: paper.originalIndex !== undefined ? paper.originalIndex : i,
-          title: paper.title || paper.snippet || paper.doi,
-          doi: paper.doi || null,
-          filename,
-          status: 'failed',
-          reason: dlRes?.error || 'Download failed'
-        });
-      }
     } catch (err) {
       activeBatchState.failedCount++;
       activeBatchState.results.push({

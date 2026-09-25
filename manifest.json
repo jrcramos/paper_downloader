@@ -9,7 +9,8 @@
     "activeTab",
     "scripting",
     "contextMenus",
-    "tabs"
+    "tabs",
+    "cookies"
   ],
   "host_permissions": [
     "https://api.crossref.org/*",
