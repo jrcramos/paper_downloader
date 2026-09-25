@@ -73,6 +73,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const quickSciHubMirrorGroup = document.getElementById('quickSciHubMirrorGroup');
   const quickSciHubMirrorSelect = document.getElementById('quickSciHubMirrorSelect');
   const openSciHubBtn = document.getElementById('openSciHubBtn');
+  const openDirectPdfBtn = document.getElementById('openDirectPdfBtn');
   const customTemplateInput = document.getElementById('customTemplateInput');
   const tokenCloud = document.getElementById('tokenCloud');
   const configureTemplateLink = document.getElementById('configureTemplateLink');
@@ -106,63 +107,67 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const urlIdentifiers = sniffUrlDirectly(tab.url);
 
-  try {
-    chrome.tabs.sendMessage(tab.id, { action: 'sniff_paper' }, async (response) => {
-      let sniffedPrimary = (response && response.data) ? response.data : {};
-      let allPapers = (response && response.allPapers) ? response.allPapers : [];
+  function processSniffedPapers(response) {
+    let sniffedPrimary = (response && response.data) ? response.data : {};
+    let allPapers = (response && response.allPapers) ? response.allPapers : [];
 
-      // Merge with URL direct identifiers if missing
-      if (!sniffedPrimary.doi && urlIdentifiers.doi) sniffedPrimary.doi = urlIdentifiers.doi;
-      if (!sniffedPrimary.arxivId && urlIdentifiers.arxivId) sniffedPrimary.arxivId = urlIdentifiers.arxivId;
-      if (!sniffedPrimary.pmid && urlIdentifiers.pmid) sniffedPrimary.pmid = urlIdentifiers.pmid;
-      if (!sniffedPrimary.url) sniffedPrimary.url = tab.url;
+    // Merge with URL direct identifiers if missing
+    if (!sniffedPrimary.doi && urlIdentifiers.doi) sniffedPrimary.doi = urlIdentifiers.doi;
+    if (!sniffedPrimary.arxivId && urlIdentifiers.arxivId) sniffedPrimary.arxivId = urlIdentifiers.arxivId;
+    if (!sniffedPrimary.pmid && urlIdentifiers.pmid) sniffedPrimary.pmid = urlIdentifiers.pmid;
+    if (!sniffedPrimary.url) sniffedPrimary.url = tab.url;
 
-      if (allPapers.length === 0 && (sniffedPrimary.doi || sniffedPrimary.arxivId || sniffedPrimary.title)) {
-        allPapers = [sniffedPrimary];
-      }
+    if (allPapers.length === 0 && (sniffedPrimary.doi || sniffedPrimary.arxivId || sniffedPrimary.title)) {
+      allPapers = [sniffedPrimary];
+    }
 
-      if (allPapers.length === 0) {
-        showScanError('No academic publications or DOIs detected on this page');
-        return;
-      }
+    if (allPapers.length === 0) {
+      showScanError('No academic publications or DOIs detected on this page');
+      return;
+    }
 
-      allDetectedPapers = allPapers;
-      currentPaperIndex = 0;
+    allDetectedPapers = allPapers;
+    currentPaperIndex = 0;
 
-      // Update badge on toolbar icon for this tab
-      chrome.runtime.sendMessage({
-        action: 'update_badge_count',
-        count: allDetectedPapers.length,
-        tabId: tab.id
-      });
-
-      // Update in-popup count badge
-      if (tabPaperCountBadge) {
-        tabPaperCountBadge.textContent = allDetectedPapers.length === 1 
-          ? '📄 1 Paper Found' 
-          : `📚 ${allDetectedPapers.length} Papers Found`;
-        tabPaperCountBadge.style.display = 'inline-flex';
-      }
-
-      // If multiple papers detected, enable Multi-Paper UI
-      if (allDetectedPapers.length > 1) {
-        viewTabs.style.display = 'flex';
-        batchTabCount.textContent = allDetectedPapers.length;
-        paperSelectorWrap.style.display = 'flex';
-        initPaperSelector();
-        initBatchView();
-      }
-
-      // Load first paper
-      loadPaperAtIndex(0);
+    // Update badge on toolbar icon for this tab
+    chrome.runtime.sendMessage({
+      action: 'update_badge_count',
+      count: allDetectedPapers.length,
+      tabId: tab.id
+    }, () => {
+      if (chrome.runtime.lastError) {}
     });
-  } catch (err) {
+
+    // Update in-popup count badge
+    if (tabPaperCountBadge) {
+      tabPaperCountBadge.textContent = allDetectedPapers.length === 1 
+        ? '📄 1 Paper Found' 
+        : `📚 ${allDetectedPapers.length} Papers Found`;
+      tabPaperCountBadge.style.display = 'inline-flex';
+    }
+
+    // If multiple papers detected, enable Multi-Paper UI
+    if (allDetectedPapers.length > 1) {
+      viewTabs.style.display = 'flex';
+      batchTabCount.textContent = allDetectedPapers.length;
+      paperSelectorWrap.style.display = 'flex';
+      initPaperSelector();
+      initBatchView();
+    }
+
+    // Load first paper
+    loadPaperAtIndex(0);
+  }
+
+  function fallbackToUrlIdentifiers() {
     if (urlIdentifiers.doi || urlIdentifiers.arxivId) {
       allDetectedPapers = [urlIdentifiers];
       chrome.runtime.sendMessage({
         action: 'update_badge_count',
         count: 1,
         tabId: tab.id
+      }, () => {
+        if (chrome.runtime.lastError) {}
       });
       if (tabPaperCountBadge) {
         tabPaperCountBadge.textContent = '📄 1 Paper Found';
@@ -170,9 +175,40 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       loadPaperAtIndex(0);
     } else {
-      showScanError('Could not connect to page content');
+      showScanError('Could not connect to page content. Try refreshing the tab.');
     }
   }
+
+  // Communicate with content script; if absent on active tab, dynamically inject content.js
+  chrome.tabs.sendMessage(tab.id, { action: 'sniff_paper' }, (response) => {
+    if (chrome.runtime.lastError) {
+      // Content script not yet active on tab (e.g. opened prior to extension load)
+      if (chrome.scripting && tab.id && tab.url && (tab.url.startsWith('http://') || tab.url.startsWith('https://'))) {
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content.js']
+        }, () => {
+          if (chrome.runtime.lastError) {
+            fallbackToUrlIdentifiers();
+            return;
+          }
+          // Script dynamically injected; retry sniff
+          chrome.tabs.sendMessage(tab.id, { action: 'sniff_paper' }, (retryResponse) => {
+            if (chrome.runtime.lastError) {
+              fallbackToUrlIdentifiers();
+            } else {
+              processSniffedPapers(retryResponse);
+            }
+          });
+        });
+      } else {
+        fallbackToUrlIdentifiers();
+      }
+      return;
+    }
+
+    processSniffedPapers(response);
+  });
 
   // Load and resolve paper at specific index
   async function loadPaperAtIndex(index) {
@@ -195,15 +231,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Query Background Multi-API Cascade if not yet enriched
     if (!paper.resolved) {
       chrome.runtime.sendMessage({ action: 'fetch_metadata', data: paper }, (metaRes) => {
-        if (metaRes && metaRes.success && metaRes.meta) {
-          allDetectedPapers[index] = { ...paper, ...metaRes.meta, resolved: true };
-          currentMeta = allDetectedPapers[index];
-          const src = currentMeta.arxivId ? 'Verified arXiv' : (currentMeta.doi ? 'Verified Crossref' : 'Metadata Found');
-          setSourceBadge(src, '');
-        } else {
+        if (chrome.runtime.lastError || !metaRes || !metaRes.success || !metaRes.meta) {
           allDetectedPapers[index].resolved = true;
           setSourceBadge('Page Metadata', '');
+          renderPaper(currentMeta);
+          updateBatchItemRow(index);
+          return;
         }
+        allDetectedPapers[index] = { ...paper, ...metaRes.meta, resolved: true };
+        currentMeta = allDetectedPapers[index];
+        const src = currentMeta.arxivId ? 'Verified arXiv' : (currentMeta.doi ? 'Verified Crossref' : 'Metadata Found');
+        setSourceBadge(src, '');
         renderPaper(currentMeta);
         updateBatchItemRow(index);
       });
@@ -254,7 +292,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Check if a batch is already active in background on popup open
   chrome.runtime.sendMessage({ action: 'get_batch_status' }, (res) => {
-    if (res && res.batchState && res.batchState.isRunning) {
+    if (chrome.runtime.lastError || !res) return;
+    if (res.batchState && res.batchState.isRunning) {
       tabBatchBtn.click();
       batchProgress.style.display = 'block';
       batchDownloadBtn.disabled = true;
@@ -471,7 +510,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Check Chrome download history & physical files on disk for existing papers
   async function checkAndMarkDuplicates() {
     chrome.runtime.sendMessage({ action: 'check_duplicates', papers: allDetectedPapers }, (res) => {
-      if (!res || !res.duplicatesMap) return;
+      if (chrome.runtime.lastError || !res || !res.duplicatesMap) return;
       const dMap = res.duplicatesMap;
 
       allDetectedPapers.forEach((paper, idx) => {
@@ -677,6 +716,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         enableSciHub: userPrefs.enableSciHub !== false,
         sciHubMirror: userPrefs.sciHubMirror || quickSciHubMirrorSelect?.value || 'https://www.sci-hub.ru/'
       }
+    }, () => {
+      if (chrome.runtime.lastError) {}
     });
 
     startBatchPolling();
@@ -686,6 +727,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (cancelBatchBtn) {
     cancelBatchBtn.addEventListener('click', () => {
       chrome.runtime.sendMessage({ action: 'cancel_batch_download' }, () => {
+        if (chrome.runtime.lastError) {}
         showToast('Stopping batch download...');
         progressText.textContent = 'Cancelling batch...';
       });
@@ -698,7 +740,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (batchPollTimer) clearInterval(batchPollTimer);
     batchPollTimer = setInterval(async () => {
       chrome.runtime.sendMessage({ action: 'get_batch_status' }, (res) => {
-        if (!res || !res.batchState) return;
+        if (chrome.runtime.lastError || !res || !res.batchState) return;
         const bs = res.batchState;
 
         if (bs.total > 0) {
@@ -785,13 +827,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     showToast(`Compiling BibTeX for ${selectedPapers.length} papers...`);
 
     chrome.runtime.sendMessage({ action: 'batch_fetch_bibtex', papers: selectedPapers }, (res) => {
-      if (res && res.success && res.bibtex) {
-        navigator.clipboard.writeText(res.bibtex).then(() => {
-          showToast(`📋 Copied ${selectedPapers.length} BibTeX entries to clipboard!`, 'success');
-        });
-      } else {
+      if (chrome.runtime.lastError || !res || !res.success || !res.bibtex) {
         showToast('Failed to compile batch BibTeX', 'error');
+        return;
       }
+      navigator.clipboard.writeText(res.bibtex).then(() => {
+        showToast(`📋 Copied ${selectedPapers.length} BibTeX entries to clipboard!`, 'success');
+      });
     });
   });
 
@@ -827,15 +869,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     showToast('Resolving verified PDF link...');
     chrome.runtime.sendMessage({ action: 'resolve_pdf_url', paper }, (pdfRes) => {
-      if (!pdfRes || !pdfRes.url) {
+      if (chrome.runtime.lastError || !pdfRes || !pdfRes.url) {
         showToast(`❌ ${pdfRes?.reason || 'Paywalled (No PDF found)'}`, 'error');
         setRowStatus(idx, 'failed', pdfRes?.reason || 'Paywalled');
         return;
       }
 
-      chrome.runtime.sendMessage({ action: 'trigger_download', data: { url: pdfRes.url, filename } }, (res) => {
+      chrome.runtime.sendMessage({ action: 'trigger_download', data: { url: pdfRes.url, filename, paper } }, (res) => {
+        if (chrome.runtime.lastError) {
+          showToast('Download failed', 'error');
+          setRowStatus(idx, 'failed', 'Download failed');
+          return;
+        }
         if (res && res.success) {
-          chrome.runtime.sendMessage({ action: 'mark_downloaded', paper, filename });
+          chrome.runtime.sendMessage({ action: 'mark_downloaded', paper, filename }, () => {
+            if (chrome.runtime.lastError) {}
+          });
           showToast(`✓ Downloaded: ${paper.firstAuthor || 'Paper'}`, 'success');
           setRowStatus(idx, 'downloaded');
         } else {
@@ -850,6 +899,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function copySingleBatchBibtex(idx) {
     const paper = allDetectedPapers[idx];
     chrome.runtime.sendMessage({ action: 'fetch_bibtex', data: paper }, (res) => {
+      if (chrome.runtime.lastError) return;
       if (res && res.success && res.bibtex) {
         navigator.clipboard.writeText(res.bibtex).then(() => {
           showToast(`📋 BibTeX copied: ${paper.title ? paper.title.slice(0, 30) + '...' : 'Paper'}`);
@@ -933,6 +983,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (openSciHubBtn) {
       openSciHubBtn.style.display = meta.doi ? 'flex' : 'none';
+    }
+
+    if (openDirectPdfBtn) {
+      openDirectPdfBtn.style.display = meta.pdfUrl ? 'flex' : 'none';
     }
 
     // Enable Download CTA
@@ -1025,7 +1079,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     downloadBtnText.textContent = 'Resolving PDF...';
 
     chrome.runtime.sendMessage({ action: 'resolve_pdf_url', paper: currentMeta }, (pdfRes) => {
-      if (!pdfRes || !pdfRes.url) {
+      if (chrome.runtime.lastError || !pdfRes || !pdfRes.url) {
         downloadBtn.disabled = false;
         downloadBtn.classList.remove('downloading');
         downloadBtnText.textContent = 'Download & Smart Rename PDF';
@@ -1033,16 +1087,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
 
+      currentMeta.pdfUrl = pdfRes.url;
+      if (openDirectPdfBtn) openDirectPdfBtn.style.display = 'flex';
+
       downloadBtnText.textContent = 'Downloading PDF...';
       chrome.runtime.sendMessage({
         action: 'trigger_download',
-        data: { url: pdfRes.url, filename: targetFilename }
+        data: { url: pdfRes.url, filename: targetFilename, paper: currentMeta }
       }, (res) => {
         downloadBtn.disabled = false;
         downloadBtn.classList.remove('downloading');
 
+        if (chrome.runtime.lastError) {
+          downloadBtnText.textContent = 'Download & Smart Rename PDF';
+          showToast('Download error', 'error');
+          return;
+        }
+
         if (res && res.success) {
-          chrome.runtime.sendMessage({ action: 'mark_downloaded', paper: currentMeta, filename: targetFilename });
+          chrome.runtime.sendMessage({ action: 'mark_downloaded', paper: currentMeta, filename: targetFilename }, () => {
+            if (chrome.runtime.lastError) {}
+          });
           downloadBtn.classList.add('success');
           downloadBtnText.textContent = '✓ Downloaded & Renamed!';
           showToast('PDF downloaded successfully!', 'success');
@@ -1063,15 +1128,29 @@ document.addEventListener('DOMContentLoaded', async () => {
               paper: currentMeta,
               options: { skipOa: true }
             }, (fallbackRes) => {
+              if (chrome.runtime.lastError) {
+                downloadBtn.disabled = false;
+                downloadBtn.classList.remove('downloading');
+                downloadBtnText.textContent = 'Download & Smart Rename PDF';
+                showToast('Mirror resolution failed', 'error');
+                return;
+              }
               if (fallbackRes && fallbackRes.url) {
                 chrome.runtime.sendMessage({
                   action: 'trigger_download',
-                  data: { url: fallbackRes.url, filename: targetFilename }
+                  data: { url: fallbackRes.url, filename: targetFilename, paper: currentMeta }
                 }, (retryRes) => {
                   downloadBtn.disabled = false;
                   downloadBtn.classList.remove('downloading');
+                  if (chrome.runtime.lastError) {
+                    downloadBtnText.textContent = 'Download & Smart Rename PDF';
+                    showToast('Download failed on mirror', 'error');
+                    return;
+                  }
                   if (retryRes && retryRes.success) {
-                    chrome.runtime.sendMessage({ action: 'mark_downloaded', paper: currentMeta, filename: targetFilename });
+                    chrome.runtime.sendMessage({ action: 'mark_downloaded', paper: currentMeta, filename: targetFilename }, () => {
+                      if (chrome.runtime.lastError) {}
+                    });
                     downloadBtn.classList.add('success');
                     downloadBtnText.textContent = '✓ Downloaded & Renamed!';
                     showToast('PDF downloaded via mirror!', 'success');
@@ -1088,12 +1167,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                 downloadBtn.disabled = false;
                 downloadBtn.classList.remove('downloading');
                 downloadBtnText.textContent = 'Download & Smart Rename PDF';
-                showToast(res?.error || 'Download failed', 'error');
+                if (res?.error && (res.error.includes('bot challenge') || res.error.includes('paywall'))) {
+                  showToast('Blocked by Cloudflare. Click "Open Direct PDF in Tab" below.', 'error');
+                  if (openDirectPdfBtn) openDirectPdfBtn.style.display = 'flex';
+                } else {
+                  showToast(res?.error || 'Download failed', 'error');
+                }
               }
             });
           } else {
             downloadBtnText.textContent = 'Download & Smart Rename PDF';
-            showToast(res?.error || 'Download failed', 'error');
+            if (res?.error && (res.error.includes('bot challenge') || res.error.includes('paywall'))) {
+              showToast('Blocked by Cloudflare. Click "Open Direct PDF in Tab" below.', 'error');
+              if (openDirectPdfBtn) openDirectPdfBtn.style.display = 'flex';
+            } else {
+              showToast(res?.error || 'Download failed', 'error');
+            }
           }
         }
       });
@@ -1109,13 +1198,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       action: 'fetch_bibtex',
       data: currentMeta
     }, (res) => {
-      if (res && res.success && res.bibtex) {
-        navigator.clipboard.writeText(res.bibtex).then(() => {
-          showToast('📋 BibTeX copied to clipboard!', 'success');
-        });
-      } else {
+      if (chrome.runtime.lastError || !res || !res.success || !res.bibtex) {
         showToast('Failed to fetch BibTeX', 'error');
+        return;
       }
+      navigator.clipboard.writeText(res.bibtex).then(() => {
+        showToast('📋 BibTeX copied to clipboard!', 'success');
+      });
     });
   });
 
@@ -1145,6 +1234,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       doi: currentMeta.doi
     }, (res) => {
       oaBtnText.textContent = 'Find Open Access';
+      if (chrome.runtime.lastError) {
+        showToast('Failed to query Unpaywall', 'error');
+        return;
+      }
       if (res && res.success && res.oaPdfUrl) {
         currentMeta.pdfUrl = res.oaPdfUrl;
         currentMeta.isOpenAccess = true;
@@ -1179,6 +1272,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       const targetUrl = `${mirror}/${currentMeta.doi}`;
       chrome.tabs.create({ url: targetUrl });
       showToast('Opening paper in Sci-Hub tab...', 'success');
+    });
+  }
+
+  // Open Direct PDF in Tab (Bypasses Cloudflare bot challenges interactively)
+  if (openDirectPdfBtn) {
+    openDirectPdfBtn.addEventListener('click', () => {
+      const url = currentMeta?.pdfUrl || (currentMeta?.doi ? `https://doi.org/${currentMeta.doi}` : null);
+      if (url) {
+        chrome.tabs.create({ url });
+        showToast('Opening PDF in new tab to pass Cloudflare...', 'info');
+      } else {
+        showToast('No direct PDF URL available', 'error');
+      }
     });
   }
 
@@ -1281,6 +1387,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         action: 'update_badge_count',
         count: 0,
         tabId: tab.id
+      }, () => {
+        if (chrome.runtime.lastError) {}
       });
     }
     downloadBtn.disabled = true;

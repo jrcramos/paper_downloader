@@ -81,7 +81,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   } else if (request.action === 'resolve_pdf_url') {
     getStoredPreferences().then(prefs => {
-      resolvePdfUrlForPaper(request.paper, prefs).then(sendResponse);
+      resolvePdfUrlForPaper(request.paper, prefs, request.options).then(sendResponse);
     });
     return true;
   } else if (request.action === 'start_batch_download') {
@@ -148,6 +148,7 @@ chrome.commands.onCommand.addListener(async (command) => {
     if (!tab || !tab.id) return;
 
     chrome.tabs.sendMessage(tab.id, { action: 'sniff_paper' }, async (response) => {
+      if (chrome.runtime.lastError) return;
       if (response && response.data) {
         const metaRes = await handleMetadataFetch(response.data);
         const meta = (metaRes && metaRes.meta) ? { ...response.data, ...metaRes.meta } : response.data;
@@ -759,6 +760,38 @@ async function triggerSmartDownload(data, waitToFinish = true) {
     }
   }
 
+  // If download was aborted because server returned HTML paywall or bot challenge (e.g. Wiley/Cloudflare),
+  // and paper details with DOI are provided, automatically cascade to mirrors!
+  if (!finishRes.success && data.paper && data.paper.doi && prefs.enableSciHub !== false) {
+    console.log(`Download for ${data.paper.doi} interrupted by HTML paywall/challenge. Cascading to mirrors...`);
+    const mirrorRes = await resolvePdfUrlForPaper(data.paper, prefs, { skipOa: true });
+    if (mirrorRes && mirrorRes.url && mirrorRes.url !== url) {
+      pendingUrlFilenames.set(mirrorRes.url, filename);
+      const retryInit = await new Promise((resolve) => {
+        chrome.downloads.download({
+          url: mirrorRes.url,
+          filename,
+          saveAs: false,
+          conflictAction: 'uniquify'
+        }, (dId) => {
+          if (chrome.runtime.lastError || !dId) {
+            resolve({ success: false, error: chrome.runtime.lastError?.message });
+          } else {
+            intendedDownloads.set(dId, filename);
+            resolve({ success: true, downloadId: dId });
+          }
+        });
+      });
+      if (retryInit.success) {
+        const mirrorFinish = await waitForDownloadToFinish(retryInit.downloadId);
+        if (mirrorFinish.success) {
+          finishRes = mirrorFinish;
+          initRes = retryInit;
+        }
+      }
+    }
+  }
+
   if (finishRes.success) {
     return { success: true, downloadId: initRes.downloadId, filename };
   } else {
@@ -1172,8 +1205,8 @@ async function resolvePdfUrlForPaper(paper, prefs, options = {}) {
 
     // Full prioritized list of official Sci-Hub & Sci-Net mirrors
     const mirrorList = Array.from(new Set([
-      configuredMirror,
       'sci-net.xyz',
+      configuredMirror,
       'sci-hub.st',
       'sci-hub.al',
       'sci-hub.wf',
